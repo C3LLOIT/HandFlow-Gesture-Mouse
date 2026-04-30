@@ -6,15 +6,19 @@ import numpy as np
 
 
 class handDetector():
-    def __init__(self, mode=False, maxHands=2, detectionCon=False, trackCon=0.5):
+    def __init__(self, mode=False, maxHands=2, modelComplexity=1, detectionCon=0.5, trackCon=0.5):
         self.mode = mode
         self.maxHands = maxHands
+        self.modelComplexity = modelComplexity
         self.detectionCon = detectionCon
         self.trackCon = trackCon
 
         self.mpHands = mp.solutions.hands
-        self.hands = self.mpHands.Hands(self.mode, self.maxHands,
-                                        self.detectionCon, self.trackCon)
+        self.hands = self.mpHands.Hands(static_image_mode=self.mode,
+                                        max_num_hands=self.maxHands,
+                                        model_complexity=self.modelComplexity,
+                                        min_detection_confidence=self.detectionCon,
+                                        min_tracking_confidence=self.trackCon)
         self.mpDraw = mp.solutions.drawing_utils
         self.tipIds = [4, 8, 12, 16, 20]
 
@@ -45,13 +49,14 @@ class handDetector():
                 self.lmList.append([id, cx, cy])
                 if draw:
                     cv2.circle(img, (cx, cy), 5, (255, 0, 255), cv2.FILLED)
-            xmin, xmax = min(xList), max(xList)
-            ymin, ymax = min(yList), max(yList)
-            bbox = xmin, ymin, xmax, ymax
+            if xList and yList:
+                xmin, xmax = min(xList), max(xList)
+                ymin, ymax = min(yList), max(yList)
+                bbox = xmin, ymin, xmax, ymax
 
-            if draw:
-                cv2.rectangle(img, (xmin - 20, ymin - 20), (xmax + 20, ymax + 20),
-                              (0, 255, 0), 2)
+                if draw:
+                    cv2.rectangle(img, (xmin - 20, ymin - 20), (xmax + 20, ymax + 20),
+                                  (0, 255, 0), 2)
         return self.lmList, bbox
 
     def fingersUp(self):    # Checks which fingers are up
@@ -89,10 +94,12 @@ class handDetector():
 def main():
     pTime = 0
     cTime = 0
-    cap = cv2.VideoCapture(1)
+    cap = cv2.VideoCapture(0)
     detector = handDetector()
     while True:
         success, img = cap.read()
+        if not success:
+            break
         img = detector.findHands(img)
         lmList, bbox = detector.findPosition(img)
         if len(lmList) != 0:
